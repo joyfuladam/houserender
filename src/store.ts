@@ -10,6 +10,8 @@ interface State {
   floorId: string
   items: Item[]
   layoutName: string
+  /** Which house the saved layout belongs to. */
+  houseKey: string
   selectedId: string | null
   dragging: boolean
   view: ViewMode
@@ -38,6 +40,7 @@ export const useStore = create<State>()(
       floorId: '',
       items: [],
       layoutName: 'Untitled',
+      houseKey: '',
       selectedId: null,
       dragging: false,
       view: '3d',
@@ -46,6 +49,7 @@ export const useStore = create<State>()(
       setHouse: (house) =>
         set((s) => ({
           house,
+          houseKey: house.name,
           floorId: house.floors.some((f) => f.id === s.floorId) ? s.floorId : (house.floors[0]?.id ?? ''),
         })),
       setFloor: (floorId) => set({ floorId, selectedId: null }),
@@ -80,6 +84,7 @@ export const useStore = create<State>()(
       partialize: (s) => ({
         items: s.items.map((it) => (it.modelUrl?.startsWith('blob:') ? { ...it, modelUrl: undefined } : it)),
         layoutName: s.layoutName,
+        houseKey: s.houseKey,
         floorId: s.floorId,
         view: s.view,
         lowWalls: s.lowWalls,
@@ -88,11 +93,3 @@ export const useStore = create<State>()(
     },
   ),
 )
-
-export const hasSavedLayout = () => {
-  try {
-    return localStorage.getItem('houserender') !== null
-  } catch {
-    return false
-  }
-}

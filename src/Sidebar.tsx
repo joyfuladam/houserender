@@ -61,8 +61,7 @@ export function Sidebar() {
   const rooms = floor?.rooms ?? []
   const floorItems = useMemo(() => s.items.filter((it) => it.floorId === floor?.id), [s.items, floor?.id])
   const selected = s.items.find((it) => it.id === s.selectedId)
-  const thickness = s.house?.wallThickness ?? 0.12
-  const status = (it: Item) => fitStatus(it, rooms, floorItems, thickness)
+  const status = (it: Item) => fitStatus(it, rooms, floorItems, floor?.fixtures)
 
   // New items land in the middle of the largest room, or the plan center.
   const dropPoint = (): [number, number] => {

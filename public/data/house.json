@@ -24,7 +24,7 @@
           "name": "Kitchen / dining",
           "ceilingHeight": 2.6,
           "floorColor": "#d8d3c8",
-          "points": [[5.6, 0], [9.4, 0], [9.4, 4.4], [5.6, 4.4]],
+          "points": [[5.72, 0], [9.4, 0], [9.4, 4.4], [5.72, 4.4]],
           "openings": [
             { "wall": 0, "type": "window", "offset": 1.2, "width": 1.5, "height": 1.1, "sill": 1.05 },
             { "wall": 1, "type": "door", "offset": 2.9, "width": 0.91, "height": 2.03, "sill": 0 },
@@ -36,7 +36,7 @@
           "name": "Bedroom",
           "ceilingHeight": 2.6,
           "floorColor": "#c2b8a6",
-          "points": [[0, 4.4], [4.8, 4.4], [4.8, 8.2], [0, 8.2]],
+          "points": [[0, 4.52], [4.8, 4.52], [4.8, 8.2], [0, 8.2]],
           "openings": [
             { "wall": 0, "type": "door", "offset": 1.1, "width": 0.9, "height": 2.03, "sill": 0 },
             { "wall": 2, "type": "window", "offset": 1.5, "width": 1.8, "height": 1.3, "sill": 0.9 },

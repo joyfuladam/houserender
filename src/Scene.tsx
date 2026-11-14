@@ -1,13 +1,14 @@
 import { Suspense, useMemo, useRef } from 'react'
-import { Canvas, type ThreeEvent } from '@react-three/fiber'
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { MapControls, OrbitControls, OrthographicCamera, PerspectiveCamera, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStore } from './store'
 import { bounds, centroid, fitStatus, polygonArea, snap, wallPieces } from './geometry'
 import { formatArea } from './units'
-import type { FitStatus, Item, Room } from './types'
+import type { FitStatus, Fixture, Item, Room } from './types'
 
 const LOW_WALL = 0.9
+const NO_FIXTURES: Fixture[] = []
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
 
 function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness: number; maxHeight: number; plan: boolean }) {
@@ -15,7 +16,7 @@ function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness:
     const shape = new THREE.Shape(room.points.map(([x, y]) => new THREE.Vector2(x, -y)))
     return new THREE.ShapeGeometry(shape)
   }, [room.points])
-  const pieces = useMemo(() => wallPieces(room, thickness, maxHeight), [room, thickness, maxHeight])
+  const pieces = useMemo(() => wallPieces(room, thickness / 2, maxHeight), [room, thickness, maxHeight])
   return (
     <group>
       <mesh geometry={floor} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -26,6 +27,8 @@ function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness:
           <boxGeometry args={p.size} />
           {p.kind === 'glass' ? (
             <meshStandardMaterial color="#9fd0e6" transparent opacity={0.35} roughness={0.1} />
+          ) : p.kind === 'threshold' ? (
+            <meshStandardMaterial color={room.floorColor ?? '#cdbfa8'} roughness={0.85} />
           ) : (
             <meshStandardMaterial color={plan ? '#3d424b' : (room.wallColor ?? '#f1eee8')} roughness={0.95} />
           )}
@@ -36,7 +39,7 @@ function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness:
 }
 
 /** Text drawn to a canvas and shown as a camera-facing sprite, so it works in both views. */
-function RoomLabel({ room }: { room: Room }) {
+function RoomLabel({ room, height }: { room: Room; height: number }) {
   const units = useStore((s) => s.units)
   const area = formatArea(polygonArea(room.points), units)
   const { texture, aspect } = useMemo(() => {
@@ -68,7 +71,6 @@ function RoomLabel({ room }: { room: Room }) {
     return { texture, aspect: canvas.width / h }
   }, [room.name, area])
   const [cx, cy] = centroid(room.points)
-  const height = 0.55
   return (
     <sprite position={[cx, 1.4, cy]} scale={[height * aspect, height, 1]} renderOrder={10} raycast={() => null}>
       <spriteMaterial map={texture} depthTest={false} toneMapped={false} transparent />
@@ -96,6 +98,18 @@ function Model({ url, size }: { url: string; size: [number, number, number] }) {
     <group scale={scale}>
       <primitive object={object} position={offset} />
     </group>
+  )
+}
+
+/** Top-down camera zoomed so the whole floor fits the viewport. */
+function PlanCamera(p: { position: [number, number, number]; target: [number, number, number]; width: number; depth: number; enabled: boolean }) {
+  const size = useThree((s) => s.size)
+  const zoom = Math.min(size.width / (p.width + 2), size.height / (p.depth + 2))
+  return (
+    <>
+      <OrthographicCamera makeDefault position={p.position} up={[0, 0, -1]} zoom={zoom} near={0.1} far={200} />
+      <MapControls makeDefault enabled={p.enabled} enableRotate={false} target={p.target} screenSpacePanning />
+    </>
   )
 }
 
@@ -193,6 +207,7 @@ export function Scene() {
 
   const floor = house?.floors.find((f) => f.id === floorId) ?? house?.floors[0]
   const rooms = floor?.rooms ?? []
+  const fixtures = floor?.fixtures ?? NO_FIXTURES
   const thickness = house?.wallThickness ?? 0.12
   const b = useMemo(() => bounds(rooms), [rooms])
   const cx = (b.minX + b.maxX) / 2
@@ -200,8 +215,8 @@ export function Scene() {
   const span = Math.max(b.maxX - b.minX, b.maxY - b.minY)
   const floorItems = useMemo(() => items.filter((it) => it.floorId === floor?.id), [items, floor?.id])
   const statuses = useMemo(
-    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, thickness)])),
-    [floorItems, rooms, thickness],
+    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, fixtures)])),
+    [floorItems, rooms, fixtures],
   )
 
   const cam = useMemo(
@@ -232,10 +247,7 @@ export function Scene() {
           />
         </>
       ) : (
-        <>
-          <OrthographicCamera makeDefault position={cam.ortho} up={[0, 0, -1]} zoom={Math.min(70, 520 / span)} near={0.1} far={200} />
-          <MapControls makeDefault enabled={!dragging} enableRotate={false} target={cam.mapTarget} screenSpacePanning />
-        </>
+        <PlanCamera position={cam.ortho} target={cam.mapTarget} width={b.maxX - b.minX} depth={b.maxY - b.minY} enabled={!dragging} />
       )}
       <hemisphereLight args={['#ffffff', '#b7b2a8', 1.1]} />
       <directionalLight
@@ -257,7 +269,19 @@ export function Scene() {
         <RoomMesh key={r.id} room={r} thickness={thickness} maxHeight={maxHeight} plan={view === 'plan'} />
       ))}
       {rooms.map((r) => (
-        <RoomLabel key={r.id} room={r} />
+        <RoomLabel key={r.id} room={r} height={Math.max(0.5, span * 0.04)} />
+      ))}
+      {fixtures.map((f) => (
+        <mesh
+          key={f.id}
+          position={[f.x, Math.min(f.height, maxHeight) / 2, f.y]}
+          rotation={[0, (-f.rotation * Math.PI) / 180, 0]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[f.width, Math.min(f.height, maxHeight), f.depth]} />
+          <meshStandardMaterial color="#a9a49b" roughness={0.9} />
+        </mesh>
       ))}
       {floorItems.map((it) => (
         <ItemMesh key={it.id} item={it} status={statuses.get(it.id) ?? 'ok'} />

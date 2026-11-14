@@ -1,4 +1,4 @@
-import type { Item, Opening, Room, Vec2, FitStatus } from './types'
+import type { Fixture, Item, Opening, Room, Vec2, FitStatus } from './types'
 
 export const signedArea = (pts: Vec2[]) => {
   let a = 0
@@ -108,24 +108,23 @@ const verticalOverlap = (a: Item, b: Item) => {
 }
 
 /**
- * An item fits when its whole footprint lies inside one room (inset by half the
- * wall thickness, since room polygons follow wall centerlines) and it doesn't
- * intersect another item.
+ * An item fits when its whole footprint lies inside one room and it doesn't
+ * intersect another item or a built-in fixture.
  */
-export const fitStatus = (item: Item, rooms: Room[], others: Item[], wallThickness: number): FitStatus => {
+export const fitStatus = (item: Item, rooms: Room[], others: Item[], fixtures: Fixture[] = []): FitStatus => {
   const corners = itemCorners(item)
   const room = rooms.find((r) => pointInPolygon([item.x, item.y], r.points))
   if (!room) return 'outside'
-  const half = wallThickness / 2
-  for (const c of corners) {
-    if (!pointInPolygon(c, room.points)) return 'outside'
-    if (distanceToPolygon(c, room.points) < half - 0.005) return 'outside'
-  }
-  if (!isFlat(item))
+  for (const c of corners)
+    if (!pointInPolygon(c, room.points) && distanceToPolygon(c, room.points) > 0.005) return 'outside'
+  if (!isFlat(item)) {
     for (const o of others) {
       if (o.id === item.id || o.floorId !== item.floorId || isFlat(o)) continue
       if (verticalOverlap(item, o) && quadsOverlap(corners, itemCorners(o))) return 'overlap'
     }
+    for (const f of fixtures)
+      if ((item.elevation ?? 0) < f.height && quadsOverlap(corners, itemCorners(f))) return 'overlap'
+  }
   return 'ok'
 }
 
@@ -148,38 +147,53 @@ export interface WallPiece {
   position: [number, number, number]
   rotationY: number
   size: [number, number, number]
-  kind: 'wall' | 'glass'
+  kind: 'wall' | 'glass' | 'threshold'
 }
 
 /**
- * Turns a room outline into boxes. Each room draws the half of the wall on its
- * own side of the centerline, so a wall shared by two rooms comes out at full
- * thickness and each side can carry its own color.
+ * Turns a room outline into boxes. The outline is the wall surface, so each
+ * wall is built outward from it by its depth: half the wall for one shared
+ * with another room (the other room builds the other half), the full
+ * thickness for an exterior wall.
  */
-export const wallPieces = (room: Room, thickness: number, maxHeight = Infinity): WallPiece[] => {
+export const wallPieces = (room: Room, defaultDepth: number, maxHeight = Infinity): WallPiece[] => {
   const pts = room.points
-  const half = thickness / 2
+  const n = pts.length
   const ccw = signedArea(pts) > 0
   const H = Math.min(room.ceilingHeight, maxHeight)
+  const depthOf = (i: number) => room.wallDepths?.[(i + n) % n] ?? defaultDepth
+  const dirOf = (i: number): Vec2 => {
+    const a = pts[(i + n) % n]
+    const b = pts[(i + 1 + n) % n]
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1
+    return [(b[0] - a[0]) / len, (b[1] - a[1]) / len]
+  }
+  // A corner is convex when the outline turns the same way as its winding.
+  const convex = (i: number) => {
+    const p = dirOf(i - 1)
+    const c = dirOf(i)
+    const cross = p[0] * c[1] - p[1] * c[0]
+    return ccw ? cross > 1e-6 : cross < -1e-6
+  }
   const out: WallPiece[] = []
 
-  for (let i = 0; i < pts.length; i++) {
+  for (let i = 0; i < n; i++) {
     const a = pts[i]
-    const b = pts[(i + 1) % pts.length]
+    const b = pts[(i + 1) % n]
     const len = Math.hypot(b[0] - a[0], b[1] - a[1])
     if (len < 1e-6) continue
-    const dir: Vec2 = [(b[0] - a[0]) / len, (b[1] - a[1]) / len]
-    // Normal pointing into the room.
-    const n: Vec2 = ccw ? [-dir[1], dir[0]] : [dir[1], -dir[0]]
+    const dir = dirOf(i)
+    const depth = depthOf(i)
+    // Normal pointing out of the room, into the wall.
+    const o: Vec2 = ccw ? [dir[1], -dir[0]] : [-dir[1], dir[0]]
     const rotationY = -Math.atan2(dir[1], dir[0])
 
     const box = (s: number, e: number, bottom: number, top: number, kind: WallPiece['kind'] = 'wall') => {
       if (e - s < 1e-4 || top - bottom < 1e-4) return
       const mid = (s + e) / 2
-      const t = kind === 'glass' ? 0.02 : half
-      const off = kind === 'glass' ? 0.01 : half / 2
+      const t = kind === 'glass' ? 0.02 : depth
       out.push({
-        position: [a[0] + dir[0] * mid + n[0] * off, (bottom + top) / 2, a[1] + dir[1] * mid + n[1] * off],
+        position: [a[0] + dir[0] * mid + o[0] * (depth / 2), (bottom + top) / 2, a[1] + dir[1] * mid + o[1] * (depth / 2)],
         rotationY,
         size: [e - s, top - bottom, t],
         kind,
@@ -187,20 +201,24 @@ export const wallPieces = (room: Room, thickness: number, maxHeight = Infinity):
     }
 
     const openings: Opening[] = room.openings
-      .filter((o) => o.wall === i)
+      .filter((op) => op.wall === i)
       .sort((p, q) => p.offset - q.offset)
 
-    let cursor = 0
-    for (const o of openings) {
-      const s = Math.max(cursor, Math.min(len, o.offset))
-      const e = Math.max(s, Math.min(len, o.offset + o.width))
+    // Fill the outside of convex corners, where neighboring walls would
+    // otherwise leave a square notch.
+    let cursor = convex(i) ? -depthOf(i - 1) : 0
+    const end = convex(i + 1) ? len + depthOf(i + 1) : len
+    for (const op of openings) {
+      const s = Math.max(cursor, Math.min(len, op.offset))
+      const e = Math.max(s, Math.min(len, op.offset + op.width))
       box(cursor, s, 0, H)
-      box(s, e, 0, Math.min(o.sill, H))
-      box(s, e, Math.min(o.sill + o.height, H), H)
-      if (o.type === 'window') box(s, e, Math.min(o.sill, H), Math.min(o.sill + o.height, H), 'glass')
+      box(s, e, 0, Math.min(op.sill, H))
+      box(s, e, Math.min(op.sill + op.height, H), H)
+      if (op.type === 'window') box(s, e, Math.min(op.sill, H), Math.min(op.sill + op.height, H), 'glass')
+      if (op.sill < 0.01) box(s, e, -0.02, 0, 'threshold')
       cursor = e
     }
-    box(cursor, len, 0, H)
+    box(cursor, end, 0, H)
   }
   return out
 }

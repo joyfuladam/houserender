@@ -18,22 +18,38 @@ export interface Opening {
 export interface Room {
   id: string
   name: string
-  /** Wall centerline polygon, in order. */
+  /** Outline of the room at the wall surfaces, in order. */
   points: Vec2[]
+  /** How far each wall extends outward from the outline; index matches `points`. */
+  wallDepths?: number[]
   ceilingHeight: number
   floorColor?: string
   wallColor?: string
   openings: Opening[]
 }
 
+/** Something built in that furniture has to avoid, such as a staircase. */
+export interface Fixture {
+  id: string
+  name: string
+  x: number
+  y: number
+  rotation: number
+  width: number
+  depth: number
+  height: number
+}
+
 export interface Floor {
   id: string
   name: string
   rooms: Room[]
+  fixtures?: Fixture[]
 }
 
 export interface House {
   name: string
+  /** Wall depth used where a room has no `wallDepths`. */
   wallThickness: number
   floors: Floor[]
 }

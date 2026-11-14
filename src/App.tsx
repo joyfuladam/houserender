@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Scene } from './Scene'
 import { Sidebar } from './Sidebar'
-import { hasSavedLayout, useStore } from './store'
+import { useStore } from './store'
 import type { House, Layout } from './types'
-
-const hadSavedLayout = hasSavedLayout()
 
 export function App() {
   const house = useStore((s) => s.house)
@@ -19,10 +17,11 @@ export function App() {
     }
     get<House>('data/house.json')
       .then(async (h) => {
+        // The bundled layout is only a starting point: keep the layout someone
+        // has been working on in this browser, unless it was for another house.
+        const sameHouse = useStore.getState().houseKey === h.name
         useStore.getState().setHouse(h)
-        // The bundled layout is only a starting point; never overwrite the
-        // layout someone has been working on in this browser.
-        if (!hadSavedLayout) useStore.getState().setLayout(await get<Layout>('data/layout.json'))
+        if (!sameHouse) useStore.getState().setLayout(await get<Layout>('data/layout.json'))
       })
       .catch((e: Error) => setError(e.message))
   }, [])

@@ -31,17 +31,32 @@ npm run build:artifact   # build for publishing as a Claude artifact (dist-artif
 Everything is plain JSON in meters, so layouts can be edited, reviewed and
 versioned like any other file.
 
-- `public/data/house.json` — the building. Each room is a polygon of wall
-  centerline points plus its doors and windows (`src/types.ts` has the schema).
-  **The file checked in now is a made-up sample**; it is replaced by the import
-  of the MagicPlan capture.
+- `public/data/house.json` — the building. Each room is the outline of its
+  wall surfaces plus its doors and windows (`src/types.ts` has the schema).
+  **The file checked in is a made-up sample.**
 - `public/data/layout.json` — the starting furniture layout. Each item has a
   position, rotation, width/depth/height, and optionally a product link and a
   3D model.
+- `private/data/` — the real house and its layout. Not committed (this
+  repository is public); `npm run build:artifact` uses it when it is present.
+
+## Importing a MagicPlan capture
+
+Export each floor from MagicPlan as a 3D export, in both OBJ and USDZ.
+
+```sh
+pip install usd-core
+python scripts/magicplan_usd_hints.py first.usdz > first-hints.json
+node scripts/import-magicplan.mjs --name "My house" --out private/data/house.json \
+     "1st Floor=first.obj:first-hints.json"
+```
+
+The OBJ supplies rooms, wall thicknesses, ceiling heights and openings. The
+USDZ is optional and adds which doorways have a door, and built-in objects such
+as stairs. Neither file contains room names; rooms come out as "Room 1…n".
 
 ## Not built yet
 
-- MagicPlan importer (needs the real export files to build and check against).
 - Adding an item from a retailer product page (dimensions, photo, price, and
   the 3D model when the retailer publishes one).
 - Suggested layouts, checked against clearances, door swings and sight lines.
