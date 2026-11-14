@@ -1,0 +1,106 @@
+:root {
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --line: #dfe2e7;
+  --text: #1c1f24;
+  --muted: #6b7280;
+  --accent: #2f6fed;
+  --danger: #d93025;
+  --warn: #e8710a;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--bg); overscroll-behavior: none; }
+
+.app { display: flex; height: 100%; }
+.viewport { flex: 1; min-width: 0; position: relative; }
+.viewport canvas { display: block; touch-action: none; }
+.loading { padding: 24px; color: var(--muted); }
+
+.sidebar {
+  width: 320px;
+  flex: none;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sidebar h1 { font-size: 17px; margin: 0; }
+.sidebar h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 8px; }
+.sidebar section { display: flex; flex-direction: column; gap: 8px; }
+.sidebar section.row, .row { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; margin: 0; }
+header p { margin: 2px 0 0; font-size: 12px; }
+
+button, select, input {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 10px;
+  min-height: 34px;
+}
+button { cursor: pointer; }
+button:hover { border-color: #b8bec8; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { color: var(--danger); }
+select { flex: 1; min-width: 0; }
+input[type='color'] { padding: 2px; width: 100%; }
+
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; }
+.seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 6px 6px 0; }
+.seg button.on { background: var(--text); border-color: var(--text); color: #fff; position: relative; }
+.check { display: inline-flex; align-items: center; gap: 6px; }
+.check input { min-height: 0; }
+
+.card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field span { font-size: 11px; color: var(--muted); }
+.field input { width: 100%; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.status { margin: 0; font-size: 13px; font-weight: 600; }
+.status.ok { color: #1e8e3e; }
+.status.outside { color: var(--danger); }
+.status.overlap { color: var(--warn); }
+
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.items li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.items li:hover { background: #eceef2; }
+.items li.on { background: #e3ebfd; }
+.items li.empty { cursor: default; }
+.items li i { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1px solid rgba(0, 0, 0, 0.15); }
+.items li div { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.items li b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.items li span { font-size: 12px; }
+.items em { font-style: normal; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 10px; color: #fff; }
+.items em.outside { background: var(--danger); }
+.items em.overlap { background: var(--warn); }
+
+.room-label {
+  font: 600 12px system-ui, sans-serif;
+  color: #2b2f36;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-align: center;
+  user-select: none;
+}
+.room-label span { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  .viewport { flex: none; height: 52dvh; }
+  .sidebar { width: auto; flex: 1; border-left: 0; border-top: 1px solid var(--line); }
+}

@@ -1,0 +1,101 @@
+{
+  "name": "Sample layout",
+  "items": [
+    {
+      "id": "rug1",
+      "name": "Area rug 8×10",
+      "floorId": "main",
+      "x": 3.5,
+      "y": 2.2,
+      "rotation": 0,
+      "width": 3.05,
+      "depth": 2.44,
+      "height": 0.02,
+      "color": "#b9aa94"
+    },
+    {
+      "id": "sofa1",
+      "name": "Sofa (3-seat)",
+      "floorId": "main",
+      "x": 3.6,
+      "y": 3.55,
+      "rotation": 180,
+      "width": 2.13,
+      "depth": 0.94,
+      "height": 0.86,
+      "color": "#8a94a6"
+    },
+    {
+      "id": "ct1",
+      "name": "Coffee table",
+      "floorId": "main",
+      "x": 3.6,
+      "y": 2.3,
+      "rotation": 0,
+      "width": 1.22,
+      "depth": 0.61,
+      "height": 0.43,
+      "color": "#7a5c44"
+    },
+    {
+      "id": "tv1",
+      "name": "TV console",
+      "floorId": "main",
+      "x": 3.6,
+      "y": 0.4,
+      "rotation": 0,
+      "width": 1.63,
+      "depth": 0.43,
+      "height": 0.56,
+      "color": "#4a4f57"
+    },
+    {
+      "id": "chair1",
+      "name": "Armchair",
+      "floorId": "main",
+      "x": 0.8,
+      "y": 2.2,
+      "rotation": 90,
+      "width": 0.84,
+      "depth": 0.86,
+      "height": 0.84,
+      "color": "#a68a6d"
+    },
+    {
+      "id": "dt1",
+      "name": "Dining table (6)",
+      "floorId": "main",
+      "x": 7.6,
+      "y": 2.3,
+      "rotation": 90,
+      "width": 1.83,
+      "depth": 0.97,
+      "height": 0.76,
+      "color": "#7a5c44"
+    },
+    {
+      "id": "bed1",
+      "name": "Queen bed",
+      "floorId": "main",
+      "x": 2.4,
+      "y": 7.1,
+      "rotation": 0,
+      "width": 1.52,
+      "depth": 2.03,
+      "height": 0.61,
+      "color": "#c9c3b8"
+    },
+    {
+      "id": "ns1",
+      "name": "Nightstand",
+      "floorId": "main",
+      "x": 1.25,
+      "y": 7.9,
+      "rotation": 0,
+      "width": 0.56,
+      "depth": 0.43,
+      "height": 0.61,
+      "color": "#7a5c44"
+    }
+  ]
+}
