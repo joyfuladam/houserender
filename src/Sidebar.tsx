@@ -22,6 +22,10 @@ const download = (name: string, data: unknown) => {
   URL.revokeObjectURL(url)
 }
 
+// Inside a Claude artifact the page cannot start a download, so the layout is
+// copied to the clipboard instead.
+const IN_ARTIFACT = Boolean(import.meta.env.VITE_ARTIFACT)
+
 const readJson = async <T,>(file: File) => JSON.parse(await file.text()) as T
 
 function NumberField({ label, meters, onChange }: { label: string; meters: number; onChange: (m: number) => void }) {
@@ -48,6 +52,7 @@ export function Sidebar() {
   const s = useStore()
   const [preset, setPreset] = useState(0)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState<'' | 'done' | 'manual'>('')
   const layoutInput = useRef<HTMLInputElement>(null)
   const houseInput = useRef<HTMLInputElement>(null)
   const modelInput = useRef<HTMLInputElement>(null)
@@ -89,6 +94,14 @@ export function Sidebar() {
       URL.revokeObjectURL(url)
       setError(`Could not read ${file.name} as a GLB/GLTF model.`)
     }
+  }
+
+  const layoutJson = () => JSON.stringify({ name: s.layoutName, items: s.items } satisfies Layout, null, 2)
+  const copyLayout = () => {
+    navigator.clipboard.writeText(layoutJson()).then(
+      () => setCopied('done'),
+      () => setCopied('manual'),
+    )
   }
 
   const loadLayout = async (file: File) => {
@@ -250,10 +263,19 @@ export function Sidebar() {
       <section>
         <h2>Files</h2>
         <div className="row">
-          <button onClick={() => download('layout.json', { name: s.layoutName, items: s.items } satisfies Layout)}>Save layout</button>
+          {IN_ARTIFACT ? (
+            <button id="copy-layout" onClick={copyLayout}>
+              {copied === 'done' ? 'Copied' : 'Copy layout'}
+            </button>
+          ) : (
+            <button onClick={() => download('layout.json', JSON.parse(layoutJson()))}>Save layout</button>
+          )}
           <button onClick={() => layoutInput.current?.click()}>Open layout</button>
           <button onClick={() => houseInput.current?.click()}>Open house</button>
         </div>
+        {copied === 'manual' && (
+          <textarea id="layout-json" className="json" readOnly rows={5} value={layoutJson()} onFocus={(e) => e.target.select()} />
+        )}
         {error && <p className="status outside">{error}</p>}
         <p className="muted small">Drag items to move them. R rotates the selected item 15°, Shift+R 90°, Delete removes it.</p>
       </section>

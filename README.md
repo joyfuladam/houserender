@@ -10,6 +10,7 @@ npm install
 npm run dev      # http://localhost:5173
 npm test         # geometry tests
 npm run build    # type-check + production build
+npm run build:artifact   # build for publishing as a Claude artifact (dist-artifact/)
 ```
 
 ## What works today

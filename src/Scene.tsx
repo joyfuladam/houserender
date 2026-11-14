@@ -218,8 +218,7 @@ export function Scene() {
   const maxHeight = view === '3d' && !lowWalls ? Infinity : LOW_WALL
 
   return (
-    <Canvas shadows dpr={[1, 2]} onPointerMissed={() => select(null)} gl={{ preserveDrawingBuffer: true, toneMapping: THREE.NeutralToneMapping }}>
-      <color attach="background" args={['#eef0f3']} />
+    <Canvas shadows dpr={[1, 2]} onPointerMissed={() => select(null)} gl={{ preserveDrawingBuffer: true, alpha: true, toneMapping: THREE.NeutralToneMapping }}>
       {view === '3d' ? (
         <>
           <PerspectiveCamera makeDefault fov={45} position={cam.persp} />
@@ -252,7 +251,7 @@ export function Scene() {
       />
       <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[span * 6, span * 6]} />
-        <meshStandardMaterial color="#e3e5e8" roughness={1} />
+        <shadowMaterial opacity={0.2} />
       </mesh>
       {rooms.map((r) => (
         <RoomMesh key={r.id} room={r} thickness={thickness} maxHeight={maxHeight} plan={view === 'plan'} />
