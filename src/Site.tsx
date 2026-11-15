@@ -113,27 +113,77 @@ export function Terrain({ site, base }: { site: Site; base: string }) {
   )
 }
 
-export function LotLine({ site }: { site: Site }) {
-  const points = useMemo(() => {
-    if (!site.lot) return null
-    const { heightAt } = terrainGrid(site)
-    const out: [number, number, number][] = []
-    const lot = site.lot
-    for (let i = 0; i < lot.length; i++) {
-      const [e1, n1] = lot[i]
-      const [e2, n2] = lot[(i + 1) % lot.length]
-      const steps = Math.max(1, Math.ceil(Math.hypot(e2 - e1, n2 - n1) / 2))
-      for (let k = 0; k < steps; k++) {
-        const dE = e1 + ((e2 - e1) * k) / steps
-        const dN = n1 + ((n2 - n1) * k) / steps
-        out.push([dE, heightAt(dE, dN) + 0.25, -dN])
+type P3 = [number, number, number]
+
+/**
+ * A closed outline draped on the terrain, split into runs that stay inside
+ * the terrain grid (neighboring parcels often extend past it).
+ */
+const drape = (site: Site, ring: [number, number][], heightAt: (e: number, n: number) => number): P3[][] => {
+  const t = site.terrain
+  const east = t.west + (t.cols - 1) * t.cell
+  const south = t.north - (t.rows - 1) * t.cell
+  const inside = (e: number, n: number) => e >= t.west && e <= east && n >= south && n <= t.north
+  const runs: P3[][] = []
+  let run: P3[] = []
+  for (let i = 0; i < ring.length; i++) {
+    const [e1, n1] = ring[i]
+    const [e2, n2] = ring[(i + 1) % ring.length]
+    const steps = Math.max(1, Math.ceil(Math.hypot(e2 - e1, n2 - n1) / 2))
+    for (let k = 0; k <= steps; k++) {
+      const dE = e1 + ((e2 - e1) * k) / steps
+      const dN = n1 + ((n2 - n1) * k) / steps
+      if (inside(dE, dN)) run.push([dE, heightAt(dE, dN) + 0.25, -dN])
+      else if (run.length) {
+        if (run.length > 1) runs.push(run)
+        run = []
       }
     }
-    out.push(out[0])
-    return out
+  }
+  if (run.length > 1) runs.push(run)
+  return runs
+}
+
+export function LotLine({ site }: { site: Site }) {
+  const { lot, others } = useMemo(() => {
+    const { heightAt } = terrainGrid(site)
+    return {
+      lot: site.lot ? drape(site, site.lot, heightAt) : [],
+      others: (site.neighbors ?? []).flatMap((r) => drape(site, r, heightAt)),
+    }
   }, [site])
-  if (!points) return null
-  return <Line points={points} color="#ffd23f" lineWidth={2.5} />
+  return (
+    <>
+      {others.map((pts, i) => (
+        <Line key={`n${i}`} points={pts} color="#ffffff" lineWidth={1.2} transparent opacity={0.7} />
+      ))}
+      {lot.map((pts, i) => (
+        <Line key={`l${i}`} points={pts} color="#ffd23f" lineWidth={2.5} />
+      ))}
+    </>
+  )
+}
+
+/** Neighboring buildings and outbuildings as simple blocks. */
+export function Buildings({ site }: { site: Site }) {
+  const meshes = useMemo(
+    () =>
+      (site.buildings ?? []).map((b) => {
+        const shape = new THREE.Shape(b.ring.map(([e, n]) => new THREE.Vector2(e, n)))
+        const height = b.height ?? 4.5
+        return { geometry: new THREE.ExtrudeGeometry(shape, { depth: height + 0.5, bevelEnabled: false }), base: b.base - 0.5 }
+      }),
+    [site],
+  )
+  return (
+    <>
+      {meshes.map((m, i) => (
+        <mesh key={i} geometry={m.geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, m.base, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#d9d4ca" roughness={0.9} />
+        </mesh>
+      ))}
+    </>
+  )
 }
 
 /** The lot's bounds in the house's frame, for framing the camera. */

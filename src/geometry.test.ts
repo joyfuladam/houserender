@@ -57,6 +57,18 @@ describe('geometry', () => {
     expect(fitStatus(item({ x: 0.6, y: 0.6 }), [room], [], [stairs])).toBe('ok')
   })
 
+  it('lets items sit on a deck but not straddle the house wall', () => {
+    const deck = {
+      id: 'd', name: 'Deck', points: [[4.2, 0], [7, 0], [7, 3], [4.2, 3]] as [number, number][],
+      height: -0.05, railingEdges: [], railingHeight: 1.07, stairs: [], roofs: [],
+    }
+    expect(fitStatus(item({ x: 5.5 }), [room], [], [], [deck])).toBe('ok')
+    expect(fitStatus(item({ x: 6.8 }), [room], [], [], [deck])).toBe('outside')
+    // Center on the deck, back half through the wall into the room.
+    expect(fitStatus(item({ x: 4.3 }), [room], [], [], [deck])).toBe('outside')
+    expect(fitStatus(item({ x: 8 }), [room], [], [], [deck])).toBe('outside')
+  })
+
   it('cuts door and window openings out of walls', () => {
     const depth = 0.1
     const pieces = wallPieces(room, depth)

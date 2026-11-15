@@ -62,7 +62,7 @@ export function Sidebar() {
   const rooms = floor?.rooms ?? []
   const floorItems = useMemo(() => s.items.filter((it) => it.floorId === floor?.id), [s.items, floor?.id])
   const selected = s.items.find((it) => it.id === s.selectedId)
-  const status = (it: Item) => fitStatus(it, rooms, floorItems, floor?.fixtures)
+  const status = (it: Item) => fitStatus(it, rooms, floorItems, floor?.fixtures, floor?.decks)
 
   // New items land in the middle of the largest room, or the plan center.
   const dropPoint = (): [number, number] => {
@@ -183,10 +183,10 @@ export function Sidebar() {
                 <dd>{lotAcres(s.site)!.toFixed(2)} acres</dd>
               </>
             )}
-            <dt>Ground on the lot</dt>
+            <dt>{s.site.lotRange ? 'Ground on the lot' : 'Ground shown'}</dt>
             <dd>
-              {formatElevation(s.site.floorElevation + s.site.terrain.min, s.units)} to{' '}
-              {formatElevation(s.site.floorElevation + s.site.terrain.max, s.units)}
+              {formatElevation(s.site.floorElevation + (s.site.lotRange?.[0] ?? s.site.terrain.min), s.units)} to{' '}
+              {formatElevation(s.site.floorElevation + (s.site.lotRange?.[1] ?? s.site.terrain.max), s.units)}
             </dd>
             <dt>First floor</dt>
             <dd>{formatElevation(s.site.floorElevation, s.units)} (estimated)</dd>
@@ -201,7 +201,11 @@ export function Sidebar() {
             </dd>
           </dl>
           <p className="muted small">
-            Elevation: USGS 3DEP 1 m LiDAR. Photo: USGS National Map. Lot line: county parcel map, not a survey.
+            Yellow: your lot. White: neighboring lots{s.site.buildings?.length ? '; blocks are other buildings, heights approximate' : ''}.
+          </p>
+          <p className="muted small">
+            Elevation: USGS 3DEP 1 m LiDAR. Lot lines: county parcel map, not a survey.
+            {s.site.sources.buildings ? ` Buildings: ${s.site.sources.buildings}.` : ''}
           </p>
         </section>
       )}

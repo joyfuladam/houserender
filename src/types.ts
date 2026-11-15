@@ -40,11 +40,56 @@ export interface Fixture {
   height: number
 }
 
+/** A roof over part of a deck: a shed sloping away from one edge, or a gable. */
+export interface PorchRoof {
+  kind: 'shed' | 'gable'
+  /** Rectangle, four corners in order. */
+  points: Vec2[]
+  /**
+   * Shed: the edge (points[i] to points[i + 1]) that sits high, against the house.
+   * Gable: the ridge runs parallel to this edge, through the middle.
+   */
+  edge: number
+  /** Underside height at the low (outer) side, above the floor. */
+  eave: number
+  /** Shed: height at the high edge. Gable: height of the ridge. */
+  peak: number
+  /** Support posts, plan coordinates. */
+  posts: Vec2[]
+}
+
+export interface Stairs {
+  /** Center of the top step's front edge, plan coordinates. */
+  x: number
+  y: number
+  width: number
+  /** Degrees; 0 descends toward plan +y, like an item facing front. */
+  rotation: number
+  steps: number
+}
+
+/** An outdoor deck or porch attached to the floor; furniture can go on it. */
+export interface Deck {
+  id: string
+  name: string
+  points: Vec2[]
+  /** Top of the decking, relative to the floor (usually a little below it). */
+  height: number
+  /** Edges (points[i] to points[i + 1]) that have a railing. */
+  railingEdges: number[]
+  railingHeight: number
+  stairs: Stairs[]
+  roofs: PorchRoof[]
+  /** Where the dimensions came from, shown to the user. */
+  note?: string
+}
+
 export interface Floor {
   id: string
   name: string
   rooms: Room[]
   fixtures?: Fixture[]
+  decks?: Deck[]
 }
 
 export interface House {
@@ -107,6 +152,12 @@ export interface Site {
   }
   /** Lot line, meters east / north of `origin`. */
   lot: [number, number][] | null
+  /** Lowest and highest ground within the lot, relative to the floor. */
+  lotRange?: [number, number] | null
+  /** Other parcel outlines in the area, same coordinates. */
+  neighbors?: [number, number][][]
+  /** Other buildings; height is null when unknown, base is the ground under them relative to the floor. */
+  buildings?: { ring: [number, number][]; height: number | null; base: number }[]
   photo: string
   sources: Record<string, string | null>
 }

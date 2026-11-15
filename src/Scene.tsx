@@ -5,11 +5,13 @@ import * as THREE from 'three'
 import { useStore } from './store'
 import { bounds, centroid, fitStatus, polygonArea, snap, wallPieces } from './geometry'
 import { formatArea } from './units'
-import { LotLine, SiteFrame, Terrain, siteBounds } from './Site'
-import type { FitStatus, Fixture, Item, Room } from './types'
+import { Buildings, LotLine, SiteFrame, Terrain, siteBounds } from './Site'
+import { DeckMesh } from './Deck'
+import type { Deck, FitStatus, Fixture, Item, Room } from './types'
 
 const LOW_WALL = 0.9
 const NO_FIXTURES: Fixture[] = []
+const NO_DECKS: Deck[] = []
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
 
 function RoomMesh(p: { room: Room; thickness: number; maxHeight: number; plan: boolean; foundation: number }) {
@@ -227,20 +229,21 @@ export function Scene() {
   const floor = house?.floors.find((f) => f.id === floorId) ?? house?.floors[0]
   const rooms = floor?.rooms ?? []
   const fixtures = floor?.fixtures ?? NO_FIXTURES
+  const decks = floor?.decks ?? NO_DECKS
   const thickness = house?.wallThickness ?? 0.12
-  const b = useMemo(() => bounds(rooms), [rooms])
+  const b = useMemo(() => bounds([...rooms, ...decks]), [rooms, decks])
   const cx = (b.minX + b.maxX) / 2
   const cz = (b.minY + b.maxY) / 2
   const span = Math.max(b.maxX - b.minX, b.maxY - b.minY)
   const floorItems = useMemo(() => items.filter((it) => it.floorId === floor?.id), [items, floor?.id])
   const statuses = useMemo(
-    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, fixtures)])),
-    [floorItems, rooms, fixtures],
+    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, fixtures, decks)])),
+    [floorItems, rooms, fixtures, decks],
   )
 
   const cam = useMemo(
     () => ({
-      persp: [cx + span * 0.55, span * 0.95, cz + span * 1.05] as [number, number, number],
+      persp: [cx + span * 0.6, span * 1.05, cz + span * 1.2] as [number, number, number],
       orbitTarget: [cx, 0.5, cz] as [number, number, number],
       ortho: [cx, 50, cz] as [number, number, number],
       mapTarget: [cx, 0, cz] as [number, number, number],
@@ -311,6 +314,7 @@ export function Scene() {
             <Terrain site={site} base={import.meta.env.BASE_URL} />
           </Suspense>
           <LotLine site={site} />
+          <Buildings site={site} />
         </SiteFrame>
       ) : (
         <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -322,6 +326,9 @@ export function Scene() {
         <RoomMesh key={r.id} room={r} thickness={thickness} maxHeight={maxHeight} plan={view === 'plan'} foundation={foundation} />
       ))}
       {!siteView && rooms.map((r) => <RoomLabel key={r.id} room={r} height={Math.max(0.5, span * 0.04)} />)}
+      {decks.map((d) => (
+        <DeckMesh key={d.id} deck={d} maxHeight={maxHeight} foundation={foundation} />
+      ))}
       {fixtures.map((f) => (
         <mesh
           key={f.id}
