@@ -2,10 +2,15 @@ import { useEffect, useState } from 'react'
 import { Scene } from './Scene'
 import { Sidebar } from './Sidebar'
 import { useStore } from './store'
-import type { House, Layout } from './types'
+import { formatElevation } from './units'
+import type { House, Layout, Site } from './types'
 
 export function App() {
   const house = useStore((s) => s.house)
+  const view = useStore((s) => s.view)
+  const hover = useStore((s) => s.hoverElevation)
+  const site = useStore((s) => s.site)
+  const units = useStore((s) => s.units)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -24,6 +29,10 @@ export function App() {
         if (!sameHouse) useStore.getState().setLayout(await get<Layout>('data/layout.json'))
       })
       .catch((e: Error) => setError(e.message))
+    // The site model is optional; without it there is no site view.
+    get<Site>('data/site.json')
+      .then((site) => useStore.getState().setSite(site))
+      .catch(() => useStore.getState().setSite(null))
   }, [])
 
   useEffect(() => {
@@ -45,6 +54,12 @@ export function App() {
     <div className="app">
       <main className="viewport">
         {house ? <Scene /> : <p className="loading">{error ? `Could not load the house: ${error}` : 'Loading…'}</p>}
+        {view === 'site' && site && hover !== null && (
+          <div className="readout">
+            Ground {formatElevation(hover, units)}
+            <span>{formatElevation(hover - site.floorElevation, units, true)} vs. floor</span>
+          </div>
+        )}
       </main>
       <Sidebar />
     </div>

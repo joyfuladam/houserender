@@ -55,6 +55,33 @@ The OBJ supplies rooms, wall thicknesses, ceiling heights and openings. The
 USDZ is optional and adds which doorways have a door, and built-in objects such
 as stairs. Neither file contains room names; rooms come out as "Room 1…n".
 
+## Placing the house on its lot
+
+The Site view shows the house on the real terrain, with 2 ft (or 1 m)
+contours over an aerial photo and the lot line. It appears when
+`data/site.json` exists. Two scripts build it from public data:
+
+```sh
+pip install numpy scipy pyproj pillow tifffile "laspy[lazrs]"
+
+# 1. Where the house sits and which way it faces, from USGS LiDAR roof points.
+python scripts/fit_house_to_lidar.py --house private/data/house.json \
+     --near LON LAT --ept DATASET --epsg 269XX
+
+# 2. Terrain, aerial photo and lot line around it.
+python scripts/site_from_usgs.py --house private/data/house.json \
+     --origin EASTING NORTHING --rotation DEGREES --epsg 269XX \
+     --parcels https://<county parcel MapServer>/<layer> --out private/data
+```
+
+- Elevation: USGS 3DEP 1 m bare-earth DEM.
+- Aerial photo: USGS National Map orthoimagery (about 1 m per pixel).
+- LiDAR: the USGS public point-cloud bucket (`s3://usgs-lidar-public`).
+- Lot line: a county parcel layer (tax-map accuracy, not a survey).
+
+The floor level is estimated as just above the highest ground around the
+house; the LiDAR is bare earth there, so it cannot see the real floor.
+
 ## Not built yet
 
 - Adding an item from a retailer product page (dimensions, photo, price, and

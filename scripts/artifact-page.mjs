@@ -18,7 +18,7 @@ writeFileSync(
 // The real house lives in private/ (not committed); the repo only carries a
 // sample. Publish the real one when it is there.
 if (existsSync('private/data')) {
-  for (const f of readdirSync('private/data').filter((n) => n.endsWith('.json'))) copyFileSync(`private/data/${f}`, `${dir}/data/${f}`)
+  for (const f of readdirSync('private/data').filter((n) => /\.(json|jpg|png)$/.test(n))) copyFileSync(`private/data/${f}`, `${dir}/data/${f}`)
   console.log('using house data from private/data')
 }
 

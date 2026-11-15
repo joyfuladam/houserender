@@ -82,3 +82,31 @@ export interface Layout {
 }
 
 export type FitStatus = 'ok' | 'outside' | 'overlap'
+
+/** Terrain and lot around the house, from scripts/site_from_usgs.py. */
+export interface Site {
+  crs: string
+  /** Projected coordinates of the plan's (0, 0). */
+  origin: [number, number]
+  /** Compass bearing the plan's "up" (negative y) faces. */
+  rotationDeg: number
+  /** Elevation of the floor (meters above sea level); terrain heights are relative to it. */
+  floorElevation: number
+  gradeAtHouse: { min: number; max: number }
+  terrain: {
+    /** Grid extent in meters east / north of `origin`. */
+    west: number
+    north: number
+    cell: number
+    cols: number
+    rows: number
+    /** Int16 little-endian, centimeters relative to the floor, row-major from the north-west corner. */
+    heightsCm: string
+    min: number
+    max: number
+  }
+  /** Lot line, meters east / north of `origin`. */
+  lot: [number, number][] | null
+  photo: string
+  sources: Record<string, string | null>
+}

@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { House, Item, Layout } from './types'
+import type { House, Item, Layout, Site } from './types'
 import type { Units } from './units'
 
-export type ViewMode = '3d' | 'plan'
+export type ViewMode = '3d' | 'plan' | 'site'
 
 interface State {
   house: House | null
+  site: Site | null
+  /** Ground elevation under the pointer in the site view, meters above sea level. */
+  hoverElevation: number | null
   floorId: string
   items: Item[]
   layoutName: string
@@ -18,6 +21,8 @@ interface State {
   lowWalls: boolean
   units: Units
   setHouse: (h: House) => void
+  setSite: (s: Site | null) => void
+  setHoverElevation: (m: number | null) => void
   setFloor: (id: string) => void
   setLayout: (l: Layout) => void
   addItem: (it: Omit<Item, 'id'>) => string
@@ -37,6 +42,8 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       house: null,
+      site: null,
+      hoverElevation: null,
       floorId: '',
       items: [],
       layoutName: 'Untitled',
@@ -52,6 +59,8 @@ export const useStore = create<State>()(
           houseKey: house.name,
           floorId: house.floors.some((f) => f.id === s.floorId) ? s.floorId : (house.floors[0]?.id ?? ''),
         })),
+      setSite: (site) => set((s) => ({ site, view: !site && s.view === 'site' ? '3d' : s.view })),
+      setHoverElevation: (hoverElevation) => set({ hoverElevation }),
       setFloor: (floorId) => set({ floorId, selectedId: null }),
       setLayout: (l) => set({ items: l.items, layoutName: l.name, selectedId: null }),
       addItem: (it) => {
