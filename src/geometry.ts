@@ -1,4 +1,4 @@
-import type { Fixture, Item, Opening, Room, Vec2, FitStatus } from './types'
+import type { Deck, Fixture, Item, Opening, Room, Vec2, FitStatus } from './types'
 
 export const signedArea = (pts: Vec2[]) => {
   let a = 0
@@ -37,7 +37,7 @@ export const pointInPolygon = ([px, py]: Vec2, pts: Vec2[]) => {
   return inside
 }
 
-export const bounds = (rooms: Room[]) => {
+export const bounds = (rooms: { points: Vec2[] }[]) => {
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -108,15 +108,31 @@ const verticalOverlap = (a: Item, b: Item) => {
 }
 
 /**
- * An item fits when its whole footprint lies inside one room and it doesn't
- * intersect another item or a built-in fixture.
+ * An item fits when its whole footprint lies inside one room or on one deck
+ * (and, on a deck, not inside the house), and it doesn't intersect another
+ * item or a built-in fixture.
  */
-export const fitStatus = (item: Item, rooms: Room[], others: Item[], fixtures: Fixture[] = []): FitStatus => {
+export const fitStatus = (
+  item: Item,
+  rooms: Room[],
+  others: Item[],
+  fixtures: Fixture[] = [],
+  decks: Deck[] = [],
+): FitStatus => {
   const corners = itemCorners(item)
-  const room = rooms.find((r) => pointInPolygon([item.x, item.y], r.points))
-  if (!room) return 'outside'
-  for (const c of corners)
-    if (!pointInPolygon(c, room.points) && distanceToPolygon(c, room.points) > 0.005) return 'outside'
+  const center: Vec2 = [item.x, item.y]
+  const inRoom = (p: Vec2, r: Room) => pointInPolygon(p, r.points) || distanceToPolygon(p, r.points) <= 0.005
+  const room = rooms.find((r) => pointInPolygon(center, r.points))
+  if (room) {
+    if (!corners.every((c) => inRoom(c, room))) return 'outside'
+  } else {
+    const deck = decks.find((d) => pointInPolygon(center, d.points))
+    if (!deck) return 'outside'
+    for (const c of corners) {
+      if (!pointInPolygon(c, deck.points) && distanceToPolygon(c, deck.points) > 0.005) return 'outside'
+      if (rooms.some((r) => pointInPolygon(c, r.points))) return 'outside'
+    }
+  }
   if (!isFlat(item)) {
     for (const o of others) {
       if (o.id === item.id || o.floorId !== item.floorId || isFlat(o)) continue

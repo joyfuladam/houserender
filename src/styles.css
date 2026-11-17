@@ -129,6 +129,28 @@ textarea.json { width: 100%; font: 11px ui-monospace, monospace; resize: vertica
 .field input { width: 100%; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.readout {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+.readout span { font-weight: 400; color: var(--muted); font-size: 12px; }
+
 .status { margin: 0; font-size: 13px; font-weight: 600; }
 .status.ok { color: var(--ok); }
 .status.outside { color: var(--danger); }

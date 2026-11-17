@@ -5,13 +5,17 @@ import * as THREE from 'three'
 import { useStore } from './store'
 import { bounds, centroid, fitStatus, polygonArea, snap, wallPieces } from './geometry'
 import { formatArea } from './units'
-import type { FitStatus, Fixture, Item, Room } from './types'
+import { Buildings, LotLine, SiteFrame, Terrain, siteBounds } from './Site'
+import { DeckMesh } from './Deck'
+import type { Deck, FitStatus, Fixture, Item, Room } from './types'
 
 const LOW_WALL = 0.9
 const NO_FIXTURES: Fixture[] = []
+const NO_DECKS: Deck[] = []
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
 
-function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness: number; maxHeight: number; plan: boolean }) {
+function RoomMesh(p: { room: Room; thickness: number; maxHeight: number; plan: boolean; foundation: number }) {
+  const { room, thickness, maxHeight, plan, foundation } = p
   const floor = useMemo(() => {
     const shape = new THREE.Shape(room.points.map(([x, y]) => new THREE.Vector2(x, -y)))
     return new THREE.ShapeGeometry(shape)
@@ -34,6 +38,21 @@ function RoomMesh({ room, thickness, maxHeight, plan }: { room: Room; thickness:
           )}
         </mesh>
       ))}
+      {/* Where the ground falls away from the house, show the foundation down to it. */}
+      {foundation > 0 &&
+        pieces
+          .filter((p) => p.kind !== 'glass')
+          .map((p, i) => (
+            <mesh
+              key={`f${i}`}
+              position={[p.position[0], -foundation / 2, p.position[2]]}
+              rotation={[0, p.rotationY, 0]}
+              receiveShadow
+            >
+              <boxGeometry args={[p.size[0], foundation, Math.max(p.size[2], 0.05)]} />
+              <meshStandardMaterial color="#9a958c" roughness={1} />
+            </mesh>
+          ))}
     </group>
   )
 }
@@ -204,37 +223,65 @@ export function Scene() {
   const lowWalls = useStore((s) => s.lowWalls)
   const dragging = useStore((s) => s.dragging)
   const select = useStore((s) => s.select)
+  const site = useStore((s) => s.site)
+  const siteView = view === 'site' && site !== null
 
   const floor = house?.floors.find((f) => f.id === floorId) ?? house?.floors[0]
   const rooms = floor?.rooms ?? []
   const fixtures = floor?.fixtures ?? NO_FIXTURES
+  const decks = floor?.decks ?? NO_DECKS
   const thickness = house?.wallThickness ?? 0.12
-  const b = useMemo(() => bounds(rooms), [rooms])
+  const b = useMemo(() => bounds([...rooms, ...decks]), [rooms, decks])
   const cx = (b.minX + b.maxX) / 2
   const cz = (b.minY + b.maxY) / 2
   const span = Math.max(b.maxX - b.minX, b.maxY - b.minY)
   const floorItems = useMemo(() => items.filter((it) => it.floorId === floor?.id), [items, floor?.id])
   const statuses = useMemo(
-    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, fixtures)])),
-    [floorItems, rooms, fixtures],
+    () => new Map(floorItems.map((it) => [it.id, fitStatus(it, rooms, floorItems, fixtures, decks)])),
+    [floorItems, rooms, fixtures, decks],
   )
 
   const cam = useMemo(
     () => ({
-      persp: [cx + span * 0.55, span * 0.95, cz + span * 1.05] as [number, number, number],
+      persp: [cx + span * 0.6, span * 1.05, cz + span * 1.2] as [number, number, number],
       orbitTarget: [cx, 0.5, cz] as [number, number, number],
       ortho: [cx, 50, cz] as [number, number, number],
       mapTarget: [cx, 0, cz] as [number, number, number],
     }),
     [cx, cz, span],
   )
+  const siteCam = useMemo(() => {
+    if (!site) return null
+    const sb = siteBounds(site)
+    const scx = (sb.minX + sb.maxX) / 2
+    const scz = (sb.minZ + sb.maxZ) / 2
+    const sspan = Math.max(sb.maxX - sb.minX, sb.maxZ - sb.minZ)
+    return {
+      position: [scx + sspan * 0.25, sspan * 0.95, scz + sspan * 0.7] as [number, number, number],
+      target: [scx, 0, scz] as [number, number, number],
+      span: sspan,
+    }
+  }, [site])
 
   if (!house || !floor) return null
-  const maxHeight = view === '3d' && !lowWalls ? Infinity : LOW_WALL
+  const maxHeight = view !== 'plan' && !lowWalls ? Infinity : LOW_WALL
+  const foundation = siteView ? Math.max(0, -site.gradeAtHouse.min + 0.3) : 0
 
   return (
     <Canvas shadows dpr={[1, 2]} onPointerMissed={() => select(null)} gl={{ preserveDrawingBuffer: true, alpha: true, toneMapping: THREE.NeutralToneMapping }}>
-      {view === '3d' ? (
+      {siteView && siteCam ? (
+        <>
+          <PerspectiveCamera makeDefault fov={45} near={0.5} far={siteCam.span * 10} position={siteCam.position} />
+          <OrbitControls
+            makeDefault
+            enabled={!dragging}
+            target={siteCam.target}
+            maxPolarAngle={Math.PI / 2 - 0.05}
+            minDistance={3}
+            maxDistance={siteCam.span * 3}
+          />
+        </>
+      ) : view !== 'plan' ? (
         <>
           <PerspectiveCamera makeDefault fov={45} position={cam.persp} />
           <OrbitControls
@@ -253,7 +300,7 @@ export function Scene() {
       <directionalLight
         position={[cx + span * 0.6, span * 1.4, cz - span * 0.4]}
         intensity={1.6}
-        castShadow={view === '3d'}
+        castShadow={view !== 'plan'}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-span}
         shadow-camera-right={span}
@@ -261,15 +308,26 @@ export function Scene() {
         shadow-camera-bottom={-span}
         shadow-bias={-0.0004}
       />
-      <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[span * 6, span * 6]} />
-        <shadowMaterial opacity={0.2} />
-      </mesh>
+      {siteView ? (
+        <SiteFrame site={site}>
+          <Suspense fallback={null}>
+            <Terrain site={site} base={import.meta.env.BASE_URL} />
+          </Suspense>
+          <LotLine site={site} />
+          <Buildings site={site} />
+        </SiteFrame>
+      ) : (
+        <mesh position={[cx, -0.01, cz]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <planeGeometry args={[span * 6, span * 6]} />
+          <shadowMaterial opacity={0.2} />
+        </mesh>
+      )}
       {rooms.map((r) => (
-        <RoomMesh key={r.id} room={r} thickness={thickness} maxHeight={maxHeight} plan={view === 'plan'} />
+        <RoomMesh key={r.id} room={r} thickness={thickness} maxHeight={maxHeight} plan={view === 'plan'} foundation={foundation} />
       ))}
-      {rooms.map((r) => (
-        <RoomLabel key={r.id} room={r} height={Math.max(0.5, span * 0.04)} />
+      {!siteView && rooms.map((r) => <RoomLabel key={r.id} room={r} height={Math.max(0.5, span * 0.04)} />)}
+      {decks.map((d) => (
+        <DeckMesh key={d.id} deck={d} maxHeight={maxHeight} foundation={foundation} />
       ))}
       {fixtures.map((f) => (
         <mesh

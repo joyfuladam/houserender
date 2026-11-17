@@ -4,7 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { useStore } from './store'
 import { PRESETS } from './catalog'
 import { centroid, fitStatus, polygonArea } from './geometry'
-import { formatDims, fromDisplay, toDisplay, unitLabel } from './units'
+import { lotAcres } from './Site'
+import { contourInterval, formatDims, formatElevation, fromDisplay, toDisplay, unitLabel } from './units'
 import type { FitStatus, House, Item, Layout } from './types'
 
 const STATUS_TEXT: Record<FitStatus, string> = {
@@ -61,7 +62,7 @@ export function Sidebar() {
   const rooms = floor?.rooms ?? []
   const floorItems = useMemo(() => s.items.filter((it) => it.floorId === floor?.id), [s.items, floor?.id])
   const selected = s.items.find((it) => it.id === s.selectedId)
-  const status = (it: Item) => fitStatus(it, rooms, floorItems, floor?.fixtures)
+  const status = (it: Item) => fitStatus(it, rooms, floorItems, floor?.fixtures, floor?.decks)
 
   // New items land in the middle of the largest room, or the plan center.
   const dropPoint = (): [number, number] => {
@@ -140,6 +141,11 @@ export function Sidebar() {
           <button className={s.view === 'plan' ? 'on' : ''} onClick={() => s.setView('plan')}>
             Plan
           </button>
+          {s.site && (
+            <button className={s.view === 'site' ? 'on' : ''} onClick={() => s.setView('site')}>
+              Site
+            </button>
+          )}
         </div>
         <div className="seg">
           <button className={s.units === 'imperial' ? 'on' : ''} onClick={() => s.setUnits('imperial')}>
@@ -164,6 +170,43 @@ export function Sidebar() {
               </option>
             ))}
           </select>
+        </section>
+      )}
+
+      {s.site && s.view === 'site' && (
+        <section className="card">
+          <h2>Site</h2>
+          <dl className="facts">
+            {lotAcres(s.site) !== null && (
+              <>
+                <dt>Lot</dt>
+                <dd>{lotAcres(s.site)!.toFixed(2)} acres</dd>
+              </>
+            )}
+            <dt>{s.site.lotRange ? 'Ground on the lot' : 'Ground shown'}</dt>
+            <dd>
+              {formatElevation(s.site.floorElevation + (s.site.lotRange?.[0] ?? s.site.terrain.min), s.units)} to{' '}
+              {formatElevation(s.site.floorElevation + (s.site.lotRange?.[1] ?? s.site.terrain.max), s.units)}
+            </dd>
+            <dt>First floor</dt>
+            <dd>{formatElevation(s.site.floorElevation, s.units)} (estimated)</dd>
+            <dt>Ground at the house</dt>
+            <dd>
+              {formatElevation(s.site.gradeAtHouse.min, s.units, true)} to {formatElevation(s.site.gradeAtHouse.max, s.units, true)} vs. floor
+            </dd>
+            <dt>Contours</dt>
+            <dd>
+              every {formatElevation(contourInterval(s.units), s.units)}, darker every{' '}
+              {formatElevation(contourInterval(s.units) * 5, s.units)}
+            </dd>
+          </dl>
+          <p className="muted small">
+            Yellow: your lot. White: neighboring lots{s.site.buildings?.length ? '; blocks are other buildings, heights approximate' : ''}.
+          </p>
+          <p className="muted small">
+            Elevation: USGS 3DEP 1 m LiDAR. Lot lines: county parcel map, not a survey.
+            {s.site.sources.buildings ? ` Buildings: ${s.site.sources.buildings}.` : ''}
+          </p>
         </section>
       )}
 

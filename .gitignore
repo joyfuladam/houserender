@@ -4,3 +4,5 @@ dist
 .DS_Store
 dist-artifact
 private
+__pycache__/
+*.pyc

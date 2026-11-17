@@ -22,3 +22,15 @@ export const formatDims = (w: number, d: number, h: number, u: Units) => {
   const f = (m: number) => (u === 'imperial' ? `${Math.round(m / IN)}` : `${Math.round(m * 100)}`)
   return `${f(w)} × ${f(d)} × ${f(h)} ${unitLabel(u)}`
 }
+
+/** Elevation in feet or meters; `signed` adds a + for values above zero. */
+export const formatElevation = (m: number, u: Units, signed = false) => {
+  const v = u === 'imperial' ? m / 0.3048 : m
+  const digits = signed ? 1 : 0
+  const text = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+  const sign = signed ? (v > 0.05 ? '+' : v < -0.05 ? '−' : '') : v < 0 ? '−' : ''
+  return `${sign}${text} ${u === 'imperial' ? 'ft' : 'm'}`
+}
+
+/** Contour spacing: 2 ft (major every 10 ft) or 1 m (major every 5 m). */
+export const contourInterval = (u: Units) => (u === 'imperial' ? 2 * 0.3048 : 1)
